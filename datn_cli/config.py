@@ -82,6 +82,7 @@ def write_env(data: dict[str, str]) -> None:
         (None, "LLM_API_KEY"),
         (None, "LLM_MODEL"),
         (None, "LLM_BASE_URL"),
+        (None, "LLM_DISABLE_THINKING"),
         ("# === EMBEDDING ===", None),
         (None, "EMBEDDING_PROVIDER"),
         (None, "EMBEDDING_API_KEY"),

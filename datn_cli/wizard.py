@@ -65,16 +65,23 @@ def prompt_llm() -> dict[str, str]:
         model = ""
         while not model:
             model = Prompt.ask("  Model").strip()
+        # Model reasoning (Qwen/VNPT/DeepSeek-distill) cần tắt thinking để xuất
+        # đúng XML structured — nếu không, chuỗi suy luận rò vào output làm hỏng flow.
+        disable_thinking = Confirm.ask(
+            "  Model dạng reasoning (Qwen/VNPT...) — tắt chế độ thinking?", default=False
+        )
     else:
         base_url = ""
         api_key = Prompt.ask("  API Key", password=True)
         model = Prompt.ask("  Model", default=_LLM_DEFAULTS[provider])
+        disable_thinking = False
 
     return {
         "LLM_PROVIDER": provider,
         "LLM_API_KEY": api_key,
         "LLM_MODEL": model,
         "LLM_BASE_URL": base_url,
+        "LLM_DISABLE_THINKING": "true" if disable_thinking else "",
     }
 
 
