@@ -15,9 +15,22 @@ function Err($m)  { Write-Host "X   $m" -ForegroundColor Red }
 
 function Has($cmd) { return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
 
+# Chay lenh native (python/pip/pipx) ma KHONG cho stderr (vd WARNING "not on PATH")
+# bien thanh terminating error duoi $ErrorActionPreference='Stop' cua Windows PowerShell.
+function Invoke-Soft([scriptblock]$cmd) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $cmd 2>&1 | Out-Null } catch { } finally { $ErrorActionPreference = $old }
+}
+
 function Refresh-Path {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
                 [System.Environment]::GetEnvironmentVariable("Path", "User")
+    # pip --user cai scripts vao %APPDATA%\Python\PythonXX\Scripts; pipx apps vao .local\bin.
+    # Them vao PATH session de Has('pipx')/Has('datn') thay duoc ngay (chua mo terminal moi).
+    Get-ChildItem "$env:APPDATA\Python\Python*\Scripts" -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { $env:Path += ";$($_.FullName)" }
+    $env:Path += ";$env:USERPROFILE\.local\bin"
 }
 
 # ── 0. Execution policy ──────────────────────────────────────────────────────
@@ -65,7 +78,7 @@ if (Python-Ok) {
     Ok ("Python " + (python -V 2>&1))
 } else {
     Info "Cai Python 3.11 qua winget..."
-    winget install -e --id Python.Python.3.11 --silent --accept-package-agreements --accept-source-agreements
+    Invoke-Soft { winget install -e --id Python.Python.3.11 --silent --accept-package-agreements --accept-source-agreements }
     Refresh-Path
     if (-not (Python-Ok)) {
         Err "Cai Python xong nhung chua nhan trong PATH. Mo terminal moi roi chay lai."
@@ -77,17 +90,13 @@ if (Python-Ok) {
 # ── 3. pipx ──────────────────────────────────────────────────────────────────
 Info "[3/5] Kiem tra pipx..."
 if (-not (Has "pipx")) {
-    python -m pip install --user --upgrade pip *>$null
-    python -m pip install --user pipx
-    python -m pipx ensurepath *>$null
-    Refresh-Path
+    Invoke-Soft { python -m pip install --user --upgrade pip --no-warn-script-location }
+    Invoke-Soft { python -m pip install --user pipx --no-warn-script-location }
 }
-if (-not (Has "pipx")) {
-    # pipx co the o %USERPROFILE%\.local\bin
-    $env:Path += ";$env:USERPROFILE\.local\bin"
-    if (-not (Has "pipx")) { Err "pipx chua vao PATH. Mo terminal moi roi chay lai."; exit 1 }
-}
-Ok "pipx san sang"
+Invoke-Soft { python -m pipx ensurepath }
+Refresh-Path
+# Khong bat buoc pipx.exe tren PATH: buoc 5 goi qua 'python -m pipx'.
+if (Has "pipx") { Ok "pipx san sang" } else { Ok "pipx san sang (qua python -m pipx)" }
 
 # ── 4. Docker Desktop ────────────────────────────────────────────────────────
 Info "[4/5] Kiem tra Docker..."
@@ -103,14 +112,20 @@ if ($dockerRunning) {
     Warn "Cho Docker Desktop khoi dong roi chay: datn up"
 } else {
     Info "Cai Docker Desktop qua winget (can vai phut)..."
-    winget install -e --id Docker.DockerDesktop --silent --accept-package-agreements --accept-source-agreements
+    Invoke-Soft { winget install -e --id Docker.DockerDesktop --silent --accept-package-agreements --accept-source-agreements }
     Warn "Docker Desktop da cai — co the can KHOI DONG LAI. Mo Docker Desktop roi chay: datn up"
 }
 
 # ── 5. datn-cli ──────────────────────────────────────────────────────────────
 Info "[5/5] Cai $Pkg..."
-try { pipx install $Pkg } catch { pipx upgrade $Pkg }
-Ok "$Pkg da cai"
+# Dung 'python -m pipx' (khong phu thuoc pipx.exe da tren PATH hay chua).
+Invoke-Soft { python -m pipx install $Pkg }
+Invoke-Soft { python -m pipx upgrade $Pkg }   # neu da cai san thi upgrade
+Refresh-Path
+if (Has "datn") { Ok "$Pkg da cai" } else {
+    Warn "$Pkg da cai nhung 'datn' chua tren PATH cua terminal nay."
+    Warn "MO TERMINAL MOI roi chay: datn init"
+}
 
 Write-Host ""
 Ok "Hoan tat!"
