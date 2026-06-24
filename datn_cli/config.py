@@ -92,6 +92,7 @@ def write_env(data: dict[str, str]) -> None:
         ("# === Sub-agents (optional) ===", None),
         (None, "TAVILY_API_KEY"),
         (None, "SERPAPI_API_KEY"),
+        (None, "UNSPLASH_ACCESS_KEY"),
     ]
     lines: list[str] = []
     written: set[str] = set()

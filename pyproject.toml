@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datn-cli"
-version = "0.2.0"
+version = "0.2.1"
 description = "One-command distribution for the datn multi-agent assistant (hides docker compose)."
 readme = "README.md"
 requires-python = ">=3.9"

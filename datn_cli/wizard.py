@@ -125,7 +125,12 @@ def prompt_optional() -> dict[str, str]:
     console.print("\n[bold cyan]── Optional (Enter để bỏ qua) ──[/bold cyan]")
     tavily = Prompt.ask("  Tavily API Key (News agent)", default="", show_default=False)
     serpapi = Prompt.ask("  SerpApi API Key (Travel agent)", default="", show_default=False)
-    return {"TAVILY_API_KEY": tavily, "SERPAPI_API_KEY": serpapi}
+    unsplash = Prompt.ask("  Unsplash Access Key (ảnh cho slide)", default="", show_default=False)
+    return {
+        "TAVILY_API_KEY": tavily,
+        "SERPAPI_API_KEY": serpapi,
+        "UNSPLASH_ACCESS_KEY": unsplash,
+    }
 
 
 # ── Orchestration ────────────────────────────────────────────────────────────

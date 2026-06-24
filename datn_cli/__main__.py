@@ -68,8 +68,10 @@ def up():
     except subprocess.CalledProcessError as e:
         console.print(
             f"[bold red]✗ docker compose lỗi (exit {e.returncode}).[/bold red]\n"
-            f"  Thường gặp: image tag '{tag}' chưa push lên Docker Hub, hoặc mạng lỗi.\n"
-            f"  Kiểm tra: docker login / tag trong ~/.datn/provider.lock."
+            f"  Xem lỗi docker cụ thể ở ngay phía trên. Nguyên nhân thường gặp:\n"
+            f"    • Port bận (port is already allocated) → đóng app/stack khác chiếm port; chạy [cyan]datn doctor[/cyan]\n"
+            f"    • Image tag '{tag}' chưa có trên Docker Hub / mạng lỗi → kiểm tra [cyan]docker pull {cfg.BACKEND_IMAGE}:{tag}[/cyan]\n"
+            f"    • Container crash → xem [cyan]datn logs[/cyan]"
         )
         raise typer.Exit(1)
     if cm.wait_healthy():
