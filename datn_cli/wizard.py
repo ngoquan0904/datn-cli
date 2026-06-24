@@ -122,15 +122,14 @@ def prompt_embedding() -> dict[str, str]:
 
 # ── Optional sub-agents ──────────────────────────────────────────────────────
 def prompt_optional() -> dict[str, str]:
-    console.print("\n[bold cyan]── Optional (Enter để bỏ qua) ──[/bold cyan]")
-    tavily = Prompt.ask("  Tavily API Key (News agent)", default="", show_default=False)
-    serpapi = Prompt.ask("  SerpApi API Key (Travel agent)", default="", show_default=False)
-    unsplash = Prompt.ask("  Unsplash Access Key (ảnh cho slide)", default="", show_default=False)
-    return {
-        "TAVILY_API_KEY": tavily,
-        "SERPAPI_API_KEY": serpapi,
-        "UNSPLASH_ACCESS_KEY": unsplash,
-    }
+    # Tavily/SerpApi/Unsplash đã bake sẵn trong image (chủ dự án chia sẻ) → user
+    # KHÔNG cần nhập. Không ghi vào .env (rỗng sẽ override key bake). Ai muốn dùng
+    # key riêng: `datn config set TAVILY_API_KEY <key>`.
+    console.print(
+        "\n[dim]News/Travel/Slide đã có key dùng chung sẵn — bỏ qua. "
+        "Dùng key riêng? `datn config set TAVILY_API_KEY <key>`.[/dim]"
+    )
+    return {}
 
 
 # ── Orchestration ────────────────────────────────────────────────────────────

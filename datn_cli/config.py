@@ -89,10 +89,8 @@ def write_env(data: dict[str, str]) -> None:
         (None, "EMBEDDING_MODEL"),
         (None, "EMBEDDING_BASE_URL"),
         (None, "EMBEDDING_DIM"),
-        ("# === Sub-agents (optional) ===", None),
-        (None, "TAVILY_API_KEY"),
-        (None, "SERPAPI_API_KEY"),
-        (None, "UNSPLASH_ACCESS_KEY"),
+        # Sub-agent keys (Tavily/SerpApi/Unsplash) KHÔNG ghi mặc định — đã bake trong
+        # image. Chỉ xuất hiện nếu user set tay (datn config set) → vào nhánh "extra".
     ]
     lines: list[str] = []
     written: set[str] = set()
