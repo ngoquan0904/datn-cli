@@ -17,11 +17,11 @@ from . import wizard
 
 console = Console()
 app = typer.Typer(
-    help="datn — one-command distribution (ẩn docker compose).",
+    help="datn — one-command distribution (hides docker compose).",
     no_args_is_help=True,
     add_completion=False,
 )
-config_app = typer.Typer(help="Cấu hình lại sau khi đã chạy.", no_args_is_help=False)
+config_app = typer.Typer(help="Reconfigure after install.", no_args_is_help=False)
 app.add_typer(config_app, name="config")
 
 
@@ -32,7 +32,7 @@ def _image_tag() -> str:
 # ── init ─────────────────────────────────────────────────────────────────────
 @app.command()
 def init():
-    """Wizard cấu hình LLM + embedding → ghi ~/.datn/.env + provider.lock."""
+    """Wizard: configure LLM + embedding → write ~/.datn/.env + provider.lock."""
     # Nếu đã cấu hình trước đó (re-init), cần biết volumes có tồn tại không để
     # guard đổi dim hoạt động → đảm bảo Docker chạy. Lần đầu (chưa config) thì
     # bỏ qua, không bắt user bật Docker chỉ để nhập key.
@@ -42,8 +42,8 @@ def init():
             volumes = cm.volumes_exist()
         else:
             console.print(
-                "[yellow]⚠ Docker không chạy — bỏ qua kiểm tra volume. "
-                "Nếu đổi embedding dim, hãy chạy `datn reset` thủ công.[/yellow]"
+                "[yellow]⚠ Docker is not running — skipping volume check. "
+                "If you change the embedding dim, run `datn reset` manually.[/yellow]"
             )
     wizard.run_init(image_tag=cfg.DEFAULT_IMAGE_TAG, volumes_exist=volumes)
 
@@ -51,13 +51,13 @@ def init():
 # ── up ───────────────────────────────────────────────────────────────────────
 @app.command()
 def up():
-    """Pull images + khởi động toàn bộ stack + chờ healthy."""
+    """Pull images + start the whole stack + wait until healthy."""
     if not cfg.is_configured():
-        console.print("[red]Chưa cấu hình. Chạy [bold]datn init[/bold] trước.[/red]")
+        console.print("[red]Not configured yet. Run [bold]datn init[/bold] first.[/red]")
         raise typer.Exit(1)
 
     if not dr.run_doctor(require_config=True):
-        console.print("[red]✗ doctor phát hiện lỗi blocking. Sửa rồi chạy lại.[/red]")
+        console.print("[red]✗ doctor found a blocking issue. Fix it and try again.[/red]")
         raise typer.Exit(1)
 
     tag = _image_tag()
@@ -67,46 +67,46 @@ def up():
         cm.up()
     except subprocess.CalledProcessError as e:
         console.print(
-            f"[bold red]✗ docker compose lỗi (exit {e.returncode}).[/bold red]\n"
-            f"  Xem lỗi docker cụ thể ở ngay phía trên. Nguyên nhân thường gặp:\n"
-            f"    • Port bận (port is already allocated) → đóng app/stack khác chiếm port; chạy [cyan]datn doctor[/cyan]\n"
-            f"    • Image tag '{tag}' chưa có trên Docker Hub / mạng lỗi → kiểm tra [cyan]docker pull {cfg.BACKEND_IMAGE}:{tag}[/cyan]\n"
-            f"    • Container crash → xem [cyan]datn logs[/cyan]"
+            f"[bold red]✗ docker compose failed (exit {e.returncode}).[/bold red]\n"
+            f"  See the docker error above. Common causes:\n"
+            f"    • Port in use (port is already allocated) → stop the app/stack using it; run [cyan]datn doctor[/cyan]\n"
+            f"    • Image tag '{tag}' not on Docker Hub / network issue → check [cyan]docker pull {cfg.BACKEND_IMAGE}:{tag}[/cyan]\n"
+            f"    • Container crashed → see [cyan]datn logs[/cyan]"
         )
         raise typer.Exit(1)
     if cm.wait_healthy():
-        console.print(f"\n[bold green]✓ Hệ thống sẵn sàng![/bold green] → {cfg.WEB_URL}")
-        console.print("[dim]Mở bằng: datn open[/dim]")
+        console.print(f"\n[bold green]✓ System is ready![/bold green] → {cfg.WEB_URL}")
+        console.print("[dim]Open it with: datn open[/dim]")
     else:
-        console.print("[red]Một số service chưa healthy. Kiểm tra: datn logs[/red]")
+        console.print("[red]Some services are not healthy. Check: datn logs[/red]")
         raise typer.Exit(1)
 
 
 # ── down / open / logs ───────────────────────────────────────────────────────
 @app.command()
 def down():
-    """Dừng stack (giữ data)."""
+    """Stop the stack (data is kept)."""
     cm.down()
-    console.print("[green]✓ Đã dừng (data được giữ).[/green]")
+    console.print("[green]✓ Stopped (data preserved).[/green]")
 
 
 @app.command()
 def open():  # noqa: A001 — tên lệnh user-facing
-    """Mở web UI trên trình duyệt."""
-    console.print(f"→ Mở {cfg.WEB_URL}")
+    """Open the web UI in your browser."""
+    console.print(f"→ Opening {cfg.WEB_URL}")
     webbrowser.open(cfg.WEB_URL)
 
 
 @app.command()
-def logs(service: str = typer.Argument(None, help="Tên service (vd agent-api). Bỏ trống = tất cả.")):
-    """Xem logs realtime."""
+def logs(service: str = typer.Argument(None, help="Service name (e.g. agent-api). Empty = all.")):
+    """Stream logs in realtime."""
     cm.logs(service)
 
 
 # ── doctor ───────────────────────────────────────────────────────────────────
 @app.command()
 def doctor():
-    """Kiểm tra môi trường (Docker, ports, config, dim...)."""
+    """Check the environment (Docker, ports, config, dim...)."""
     require = cfg.is_configured()
     ok = dr.run_doctor(require_config=require)
     raise typer.Exit(0 if ok else 1)
@@ -115,19 +115,19 @@ def doctor():
 # ── reset / update / uninstall ───────────────────────────────────────────────
 @app.command()
 def reset():
-    """Xoá toàn bộ data (volumes) — bắt buộc khi đổi embedding dim."""
+    """Delete all data (volumes) — required when the embedding dim changes."""
     if not Confirm.ask(
-        "[bold red]Xoá toàn bộ data RAG + chat history?[/bold red]", default=False
+        "[bold red]Delete all RAG data + chat history?[/bold red]", default=False
     ):
-        console.print("Đã huỷ.")
+        console.print("Cancelled.")
         return
     cm.reset()
-    console.print("[green]✓ Đã xoá volumes. Chạy datn init + datn up để bắt đầu lại.[/green]")
+    console.print("[green]✓ Volumes deleted. Run datn init + datn up to start over.[/green]")
 
 
 @app.command()
-def update(tag: str = typer.Option(None, "--tag", help="Image tag mới (vd v0.2.0).")):
-    """Đổi image tag → re-render + pull + up lại."""
+def update(tag: str = typer.Option(None, "--tag", help="New image tag (e.g. v0.2.0).")):
+    """Change image tag → re-render + pull + up again."""
     lock = cfg.read_lock()
     if tag:
         lock["image_tag"] = tag
@@ -138,30 +138,30 @@ def update(tag: str = typer.Option(None, "--tag", help="Image tag mới (vd v0.2
         cm.pull()
         cm.up()
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]✗ docker compose lỗi (exit {e.returncode}). Tag '{new_tag}' đã push chưa?[/bold red]")
+        console.print(f"[bold red]✗ docker compose failed (exit {e.returncode}). Is tag '{new_tag}' pushed?[/bold red]")
         raise typer.Exit(1)
-    console.print(f"[green]✓ Đã cập nhật lên tag '{new_tag}'.[/green]")
+    console.print(f"[green]✓ Updated to tag '{new_tag}'.[/green]")
 
 
 @app.command()
 def uninstall():
-    """down -v + xoá ~/.datn/ (giữ images đã pull)."""
+    """down -v + remove ~/.datn/ (pulled images are kept)."""
     if not Confirm.ask(
-        "[bold red]Gỡ datn: xoá data + cấu hình ~/.datn?[/bold red]", default=False
+        "[bold red]Uninstall datn: delete data + config in ~/.datn?[/bold red]", default=False
     ):
-        console.print("Đã huỷ.")
+        console.print("Cancelled.")
         return
     try:
         cm.reset()
     except Exception:
         pass
     shutil.rmtree(cfg.datn_home(), ignore_errors=True)
-    console.print("[green]✓ Đã gỡ. (Images Docker vẫn còn — xoá tay nếu muốn.)[/green]")
+    console.print("[green]✓ Uninstalled. (Docker images remain — remove them manually if you want.)[/green]")
 
 
 @app.command()
 def version():
-    """In version CLI."""
+    """Print the CLI version."""
     console.print(f"datn-cli {__version__}")
 
 
@@ -173,14 +173,14 @@ def _after_env_change(restart: bool = True):
 
 @config_app.callback(invoke_without_command=True)
 def config_main(ctx: typer.Context):
-    """Không tham số → menu interactive."""
+    """No argument → interactive menu."""
     if ctx.invoked_subcommand is not None:
         return
     if not cfg.is_configured():
-        console.print("[red]Chưa có config. Chạy [bold]datn init[/bold].[/red]")
+        console.print("[red]No config yet. Run [bold]datn init[/bold].[/red]")
         raise typer.Exit(1)
     choice = Prompt.ask(
-        "Sửa mục nào?",
+        "What do you want to change?",
         choices=["llm", "embedding", "tavily", "serpapi"],
         default="llm",
     )
@@ -190,20 +190,20 @@ def config_main(ctx: typer.Context):
 
 @config_app.command("llm")
 def config_llm():
-    """Đổi LLM provider/model/key → restart backend."""
+    """Change LLM provider/model/key → restart backend."""
     env = cfg.read_env()
     env.update(wizard.prompt_llm())
     cfg.write_env(env)
     lock = cfg.read_lock()
     lock["llm_provider"] = env["LLM_PROVIDER"]
     cfg.write_lock(lock)
-    console.print("[green]✓ Đã cập nhật LLM.[/green]")
+    console.print("[green]✓ LLM updated.[/green]")
     _after_env_change()
 
 
 @config_app.command("embedding")
 def config_embedding():
-    """Đổi embedding → detect dim; nếu đổi dim + có data → bắt reset."""
+    """Change embedding → detect dim; if dim changes with existing data → require reset."""
     try:
         new = wizard.prompt_embedding()
     except wizard.DimensionDetectError as e:
@@ -215,8 +215,8 @@ def config_embedding():
     new_dim = int(new["EMBEDDING_DIM"])
     if old_dim is not None and old_dim != new_dim and cm.volumes_exist():
         console.print(
-            f"[bold red]✗ Đổi dim {old_dim}→{new_dim} sẽ vỡ collection. "
-            f"Chạy datn reset trước.[/bold red]"
+            f"[bold red]✗ Changing dim {old_dim}→{new_dim} will break the collection. "
+            f"Run datn reset first.[/bold red]"
         )
         raise typer.Exit(1)
 
@@ -226,33 +226,33 @@ def config_embedding():
     lock["embedding_provider"] = new["EMBEDDING_PROVIDER"]
     lock["embedding_dim"] = new_dim
     cfg.write_lock(lock)
-    console.print("[green]✓ Đã cập nhật embedding.[/green]")
+    console.print("[green]✓ Embedding updated.[/green]")
     _after_env_change()
 
 
 @config_app.command("tavily")
 def config_tavily():
-    """Đổi Tavily API key."""
+    """Change the Tavily API key."""
     env = cfg.read_env()
     env["TAVILY_API_KEY"] = Prompt.ask("Tavily API Key", default="", show_default=False)
     cfg.write_env(env)
-    console.print("[green]✓ Đã cập nhật Tavily.[/green]")
+    console.print("[green]✓ Tavily updated.[/green]")
     _after_env_change()
 
 
 @config_app.command("serpapi")
 def config_serpapi():
-    """Đổi SerpApi API key."""
+    """Change the SerpApi API key."""
     env = cfg.read_env()
     env["SERPAPI_API_KEY"] = Prompt.ask("SerpApi API Key", default="", show_default=False)
     cfg.write_env(env)
-    console.print("[green]✓ Đã cập nhật SerpApi.[/green]")
+    console.print("[green]✓ SerpApi updated.[/green]")
     _after_env_change()
 
 
 @config_app.command("set")
 def config_set(key: str = typer.Argument(...), value: str = typer.Argument(...)):
-    """Sửa nhanh 1 biến .env (cho người rành env)."""
+    """Quickly set one .env variable (for advanced users)."""
     env = cfg.read_env()
     env[key] = value
     cfg.write_env(env)

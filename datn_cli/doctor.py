@@ -51,7 +51,7 @@ def _start_docker_daemon() -> None:
             )
             if r.returncode != 0:
                 console.print(
-                    "  [yellow]Không tự start được (cần quyền). Chạy tay:[/yellow] "
+                    "  [yellow]Could not auto-start (needs privileges). Run manually:[/yellow] "
                     "[cyan]sudo systemctl start docker[/cyan]"
                 )
         elif _SYSTEM == "Windows":
@@ -68,24 +68,24 @@ def ensure_docker(auto_start: bool = True) -> bool:
     if docker_ready():
         return True
     if not docker_installed():
-        console.print("[bold red]✗ Docker chưa cài.[/bold red]")
+        console.print("[bold red]✗ Docker is not installed.[/bold red]")
         if _SYSTEM == "Linux":
-            console.print("  Cài: [cyan]curl -fsSL https://get.docker.com | sh[/cyan]")
+            console.print("  Install: [cyan]curl -fsSL https://get.docker.com | sh[/cyan]")
         else:
-            console.print("  Tải Docker Desktop: [cyan]https://www.docker.com/products/docker-desktop/[/cyan]")
+            console.print("  Download Docker Desktop: [cyan]https://www.docker.com/products/docker-desktop/[/cyan]")
         return False
     if not auto_start:
-        console.print("[red]✗ Docker chưa chạy.[/red]")
+        console.print("[red]✗ Docker is not running.[/red]")
         return False
 
-    console.print("[yellow]⚠ Docker chưa chạy — đang khởi động...[/yellow]")
+    console.print("[yellow]⚠ Docker is not running — starting it...[/yellow]")
     _start_docker_daemon()
     for _ in range(30):  # 30 × 2s = 60s
         if docker_ready():
-            console.print("[green]✓ Docker sẵn sàng[/green]")
+            console.print("[green]✓ Docker is ready[/green]")
             return True
         time.sleep(2)
-    console.print("[red]✗ Docker không khởi động được sau 60s. Mở Docker Desktop thủ công.[/red]")
+    console.print("[red]✗ Docker didn't start within 60s. Open Docker Desktop manually.[/red]")
     return False
 
 
@@ -98,9 +98,9 @@ def _check_docker_group() -> tuple[bool, str]:
         if "docker" in groups.split():
             return True, ""
         return False, (
-            "User chưa thuộc nhóm 'docker'. Chạy:\n"
+            "User is not in the 'docker' group. Run:\n"
             "    [cyan]sudo usermod -aG docker $USER[/cyan]\n"
-            "  rồi [bold]đăng xuất + đăng nhập lại[/bold] (group mới có hiệu lực)."
+            "  then [bold]log out and back in[/bold] (for the new group to take effect)."
         )
     except Exception:
         return True, ""
@@ -111,7 +111,7 @@ def _check_disk() -> tuple[bool, str]:
     try:
         free_gb = shutil.disk_usage("/").free / (1024 ** 3)
         if free_gb < 5:
-            return False, f"Chỉ còn {free_gb:.1f}GB trống (cần ~5GB cho images)."
+            return False, f"Only {free_gb:.1f}GB free (need ~5GB for images)."
         return True, ""
     except Exception:
         return True, ""
@@ -128,7 +128,7 @@ def _check_ram() -> tuple[bool, str]:
                     kb = int(line.split()[1])
                     gb = kb / (1024 ** 2)
                     if gb < 2:
-                        return False, f"RAM khả dụng {gb:.1f}GB (<2GB) — Qdrant+Postgres có thể nặng."
+                        return False, f"Available RAM {gb:.1f}GB (<2GB) — Qdrant+Postgres may be heavy."
                     return True, ""
     except Exception:
         pass
@@ -145,18 +145,18 @@ def _port_in_use(port: int) -> bool:
 def _check_ports() -> tuple[bool, str]:
     busy = [name + f":{p}" for name, p in cfg.PORTS.items() if _port_in_use(p)]
     if busy:
-        return False, "Cổng đang bận: " + ", ".join(busy) + " (đóng app chiếm cổng hoặc đổi)."
+        return False, "Ports in use: " + ", ".join(busy) + " (stop the app using them, or change ports)."
     return True, ""
 
 
 # ── .env / dim ───────────────────────────────────────────────────────────────
 def _check_env() -> tuple[bool, str]:
     if not cfg.env_path().exists():
-        return False, "Chưa có ~/.datn/.env. Chạy [bold]datn init[/bold] trước."
+        return False, "No ~/.datn/.env yet. Run [bold]datn init[/bold] first."
     data = cfg.read_env()
     missing = [k for k in cfg.REQUIRED_ENV_FIELDS if not data.get(k)]
     if missing:
-        return False, "Thiếu field bắt buộc: " + ", ".join(missing) + ". Chạy [bold]datn init[/bold]."
+        return False, "Missing required fields: " + ", ".join(missing) + ". Run [bold]datn init[/bold]."
     return True, ""
 
 
@@ -167,8 +167,8 @@ def _check_dim_lock() -> tuple[bool, str]:
     lock_dim = lock.get("embedding_dim")
     if env_dim and lock_dim is not None and str(lock_dim) != str(env_dim):
         return False, (
-            f"embedding_dim lệch: .env={env_dim} vs lock={lock_dim}. "
-            "Chạy [bold]datn reset[/bold] rồi [bold]datn init[/bold]."
+            f"embedding_dim mismatch: .env={env_dim} vs lock={lock_dim}. "
+            "Run [bold]datn reset[/bold] then [bold]datn init[/bold]."
         )
     return True, ""
 
@@ -179,10 +179,10 @@ def _check_wsl() -> tuple[bool, str]:
     try:
         r = subprocess.run(["wsl", "--status"], capture_output=True, timeout=10)
         if r.returncode != 0:
-            return False, "WSL2 chưa sẵn sàng. Chạy [cyan]wsl --install[/cyan] (cần reboot)."
+            return False, "WSL2 is not ready. Run [cyan]wsl --install[/cyan] (needs a reboot)."
         return True, ""
     except Exception:
-        return False, "Không kiểm tra được WSL. Docker Desktop cần WSL2."
+        return False, "Could not check WSL. Docker Desktop requires WSL2."
 
 
 # ── Orchestration ────────────────────────────────────────────────────────────

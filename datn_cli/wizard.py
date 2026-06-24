@@ -45,7 +45,7 @@ def _fix_localhost(url: str) -> str:
     new = re.sub(r"\b(localhost|127\.0\.0\.1)\b", "host.docker.internal", url)
     if new != url:
         console.print(
-            f"  [yellow]↪ Đổi '{url}' → '{new}' (để chạy được từ trong container)[/yellow]"
+            f"  [yellow]↪ Rewrote '{url}' → '{new}' (so it works from inside the container)[/yellow]"
         )
     return new
 
@@ -58,17 +58,17 @@ def prompt_llm() -> dict[str, str]:
     if provider == "selfhost":
         base_url = ""
         while not base_url:
-            base_url = _fix_localhost(Prompt.ask("  Base URL (vd http://host:8000/v1)").strip())
+            base_url = _fix_localhost(Prompt.ask("  Base URL (e.g. http://host:8000/v1)").strip())
             if not base_url:
-                console.print("  [red]Base URL bắt buộc cho selfhost.[/red]")
-        api_key = Prompt.ask("  API Key (Enter nếu không cần)", default="", show_default=False)
+                console.print("  [red]Base URL is required for selfhost.[/red]")
+        api_key = Prompt.ask("  API Key (Enter to skip)", default="", show_default=False)
         model = ""
         while not model:
             model = Prompt.ask("  Model").strip()
         # Model reasoning (Qwen/VNPT/DeepSeek-distill) cần tắt thinking để xuất
         # đúng XML structured — nếu không, chuỗi suy luận rò vào output làm hỏng flow.
         disable_thinking = Confirm.ask(
-            "  Model dạng reasoning (Qwen/VNPT...) — tắt chế độ thinking?", default=False
+            "  Reasoning model (Qwen/VNPT...) — disable thinking mode?", default=False
         )
     else:
         base_url = ""
@@ -91,12 +91,12 @@ def prompt_embedding() -> dict[str, str]:
     provider = Prompt.ask("  Provider", choices=EMBEDDING_PROVIDERS, default="openai")
 
     if provider == "selfhost":
-        base_url = _fix_localhost(Prompt.ask("  Base URL (vd http://host:8080/v1)"))
-        api_key = Prompt.ask("  API Key (Enter nếu không cần)", default="", show_default=False)
+        base_url = _fix_localhost(Prompt.ask("  Base URL (e.g. http://host:8080/v1)"))
+        api_key = Prompt.ask("  API Key (Enter to skip)", default="", show_default=False)
         model = Prompt.ask("  Model")
-        console.print("  [dim]→ Đang kiểm tra endpoint + đo dimension...[/dim]")
+        console.print("  [dim]→ Checking endpoint + measuring dimension...[/dim]")
         dim = detect_selfhost_dimension(base_url, model, api_key)  # raise nếu lỗi
-        console.print(f"  [green]✓ Kết nối OK — dim = {dim}[/green]")
+        console.print(f"  [green]✓ Connection OK — dim = {dim}[/green]")
     else:
         base_url = ""
         api_key = Prompt.ask("  API Key", password=True)
@@ -104,8 +104,8 @@ def prompt_embedding() -> dict[str, str]:
         dim = known_dimension(model)
         if dim is None:
             console.print(
-                f"  [yellow]⚠ Không rõ dim của '{model}', mặc định 1536. "
-                f"Nếu sai, embedding sẽ vỡ collection.[/yellow]"
+                f"  [yellow]⚠ Unknown dim for '{model}', defaulting to 1536. "
+                f"If wrong, embedding will break the collection.[/yellow]"
             )
             dim = 1536
         else:
@@ -126,8 +126,8 @@ def prompt_optional() -> dict[str, str]:
     # KHÔNG cần nhập. Không ghi vào .env (rỗng sẽ override key bake). Ai muốn dùng
     # key riêng: `datn config set TAVILY_API_KEY <key>`.
     console.print(
-        "\n[dim]News/Travel/Slide đã có key dùng chung sẵn — bỏ qua. "
-        "Dùng key riêng? `datn config set TAVILY_API_KEY <key>`.[/dim]"
+        "\n[dim]News/Travel/Slide already ship with shared keys — skipping. "
+        "Want your own key? `datn config set TAVILY_API_KEY <key>`.[/dim]"
     )
     return {}
 
@@ -139,9 +139,9 @@ def run_init(image_tag: str, volumes_exist: bool) -> bool:
 
     if cfg.is_configured():
         if not Confirm.ask(
-            "[yellow]Config đã tồn tại (~/.datn/.env). Ghi đè?[/yellow]", default=False
+            "[yellow]Config already exists (~/.datn/.env). Overwrite?[/yellow]", default=False
         ):
-            console.print("Đã huỷ.")
+            console.print("Cancelled.")
             return False
 
     old_lock = cfg.read_lock()
@@ -150,8 +150,8 @@ def run_init(image_tag: str, volumes_exist: bool) -> bool:
         llm = prompt_llm()
         embedding = prompt_embedding()
     except DimensionDetectError as e:
-        console.print(f"\n[bold red]✗ Lỗi cấu hình embedding:[/bold red]\n  {e}")
-        console.print("[red]Không ghi .env. Sửa lại endpoint/key rồi chạy `datn init` lại.[/red]")
+        console.print(f"\n[bold red]✗ Embedding config error:[/bold red]\n  {e}")
+        console.print("[red]Not writing .env. Fix the endpoint/key and run `datn init` again.[/red]")
         return False
 
     optional = prompt_optional()
@@ -162,12 +162,12 @@ def run_init(image_tag: str, volumes_exist: bool) -> bool:
     # Guard đổi dim: dim mới ≠ dim cũ VÀ volumes đã có data → chặn, bắt reset
     if old_dim is not None and old_dim != new_dim and volumes_exist:
         console.print(
-            f"\n[bold red]✗ Đổi embedding dimension {old_dim} → {new_dim} "
-            f"sẽ vỡ Qdrant collection![/bold red]"
+            f"\n[bold red]✗ Changing embedding dimension {old_dim} → {new_dim} "
+            f"will break the Qdrant collection![/bold red]"
         )
         console.print(
-            "[red]Data RAG hiện tại dùng dim cũ. Chạy [bold]datn reset[/bold] "
-            "(xoá data) trước, rồi [bold]datn init[/bold] lại.[/red]"
+            "[red]Current RAG data uses the old dim. Run [bold]datn reset[/bold] "
+            "(deletes data) first, then [bold]datn init[/bold] again.[/red]"
         )
         return False
 
@@ -180,11 +180,11 @@ def run_init(image_tag: str, volumes_exist: bool) -> bool:
         "image_tag": image_tag,
     })
 
-    console.print(f"\n[green]✓ Đã ghi {cfg.env_path()} (chmod 600)[/green]")
-    console.print(f"[green]✓ Đã ghi {cfg.lock_path()}[/green]")
+    console.print(f"\n[green]✓ Wrote {cfg.env_path()} (chmod 600)[/green]")
+    console.print(f"[green]✓ Wrote {cfg.lock_path()}[/green]")
     console.print(
-        "\n[dim]💡 Gmail/Calendar: cấu hình trong Settings sau khi `datn up` "
+        "\n[dim]💡 Gmail/Calendar: configure in Settings after `datn up` "
         "(upload client_secret.json + Authorize).[/dim]"
     )
-    console.print("\n[bold]Tiếp theo:[/bold] datn up")
+    console.print("\n[bold]Next:[/bold] datn up")
     return True

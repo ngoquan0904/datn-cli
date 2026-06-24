@@ -56,21 +56,21 @@ def detect_selfhost_dimension(base_url: str, model: str, api_key: str = "") -> i
         )
     except httpx.ConnectError as e:
         raise DimensionDetectError(
-            f"Không kết nối được tới {url}. Kiểm tra base_url + endpoint đang chạy.\n  ({e})"
+            f"Could not connect to {url}. Check base_url + that the endpoint is running.\n  ({e})"
         )
     except httpx.TimeoutException:
-        raise DimensionDetectError(f"Timeout khi gọi {url} (30s). Endpoint phản hồi quá chậm?")
+        raise DimensionDetectError(f"Timeout calling {url} (30s). Endpoint too slow?")
 
     if resp.status_code == 401:
-        raise DimensionDetectError(f"401 Unauthorized — sai API key cho {url}.")
+        raise DimensionDetectError(f"401 Unauthorized — wrong API key for {url}.")
     if resp.status_code == 404:
         raise DimensionDetectError(
-            f"404 Not Found — {url} không tồn tại. base_url có đúng dạng "
-            f"'http://host:port/v1' không?"
+            f"404 Not Found — {url} does not exist. Is base_url in the form "
+            f"'http://host:port/v1'?"
         )
     if resp.status_code >= 400:
         raise DimensionDetectError(
-            f"HTTP {resp.status_code} từ {url}: {resp.text[:200]}"
+            f"HTTP {resp.status_code} from {url}: {resp.text[:200]}"
         )
 
     try:
@@ -78,11 +78,11 @@ def detect_selfhost_dimension(base_url: str, model: str, api_key: str = "") -> i
         embedding = data["data"][0]["embedding"]
     except (ValueError, KeyError, IndexError, TypeError):
         raise DimensionDetectError(
-            f"Response không đúng OpenAI schema (cần data[0].embedding). "
-            f"Nhận: {resp.text[:200]}"
+            f"Response is not OpenAI schema (need data[0].embedding). "
+            f"Got: {resp.text[:200]}"
         )
 
     if not isinstance(embedding, list) or not embedding:
-        raise DimensionDetectError("embedding rỗng hoặc không phải list.")
+        raise DimensionDetectError("embedding is empty or not a list.")
 
     return len(embedding)

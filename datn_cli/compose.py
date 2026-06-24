@@ -70,13 +70,13 @@ def volumes_exist() -> bool:
 
 
 def pull() -> None:
-    console.print("[cyan]Pulling images từ Docker Hub...[/cyan]")
-    console.print("[dim]⚠ Lần đầu có thể mất vài phút (~2-4GB).[/dim]")
+    console.print("[cyan]Pulling images from Docker Hub...[/cyan]")
+    console.print("[dim]⚠ First run can take a few minutes (~2-4GB).[/dim]")
     _compose("pull")
 
 
 def up() -> None:
-    console.print("[cyan]Khởi động services...[/cyan]")
+    console.print("[cyan]Starting services...[/cyan]")
     _compose("up", "-d")
 
 
@@ -99,7 +99,7 @@ def logs(service: str | None = None) -> None:
 # ── Health polling ───────────────────────────────────────────────────────────
 def wait_healthy(timeout: int = 120) -> bool:
     """Poll agent-api `/` + qdrant readiness tới khi healthy hoặc hết giờ."""
-    console.print("[cyan]Chờ services healthy...[/cyan]")
+    console.print("[cyan]Waiting for services to become healthy...[/cyan]")
     # Poll /health (200) — KHÔNG dùng "/" vì api.py không có route đó (trả 404,
     # sẽ false-positive). /health do api.py expose riêng cho mục đích này.
     api_url = f"http://localhost:{cfg.PORTS['agent-api']}/health"
@@ -127,13 +127,13 @@ def wait_healthy(timeout: int = 120) -> bool:
         time.sleep(3)
 
     if not qdrant_ok:
-        console.print("[red]✗ qdrant không healthy. Xem: datn logs qdrant[/red]")
+        console.print("[red]✗ qdrant is not healthy. See: datn logs qdrant[/red]")
     if not api_ok:
-        console.print("[red]✗ agent-api không healthy. Xem: datn logs agent-api[/red]")
+        console.print("[red]✗ agent-api is not healthy. See: datn logs agent-api[/red]")
     return False
 
 
 def restart_backend() -> None:
     """Restart agent-api + mcp-server để nạp .env mới (không mất data)."""
-    console.print("[cyan]Restart backend để nạp cấu hình mới...[/cyan]")
+    console.print("[cyan]Restarting backend to load new config...[/cyan]")
     _compose("up", "-d", "--force-recreate", "agent-api", "mcp-server")
